@@ -2,6 +2,7 @@ import requests
 import xml.etree.ElementTree
 import exifread
 import sqlite3
+import sys
 
 IMAGE_ROOT_URL = 'http://s3.amazonaws.com/waldo-recruiting/'
 
@@ -51,7 +52,7 @@ class DBExifSaver(object):
     def __enter__(self):
         self.conn = sqlite3.connect(self.DB_NAME)
         self.cursor = self.conn.cursor()
-        self.cursor.execute('''CREATE TABLE exif_data
+        self.cursor.execute('''CREATE TABLE if not exists exif_data
                      (photo_name text, exif_key text, exif_value text)''')
         self.conn.commit()
         return self
@@ -67,9 +68,12 @@ class DBExifSaver(object):
 
 if __name__ == '__main__':
     amazon_xml_parser = AmazonXMLParser(IMAGE_ROOT_URL)
-
+    image_names = amazon_xml_parser.get_image_names()
+    counter = 0
     with DBExifSaver() as db_exif_saver:
-        for img_name in amazon_xml_parser.get_image_names():
+        for img_name in image_names:
+            counter += 1
+            sys.stderr.write('Processing file {} from {}\n'.format(counter, len(image_names)))
             response = requests.get(IMAGE_ROOT_URL+img_name)
             tag_processor = ExifTagProcessor(img_name, response.content)
 
